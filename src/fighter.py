@@ -187,7 +187,18 @@ class Fighter(pygame.sprite.Sprite):
             left, right, jump = pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP
             light, heavy, block = pygame.K_j, pygame.K_k, pygame.K_l
 
-        # 水平移动
+        # 格挡（最高优先级，直接返回）
+        if keys[block]:
+            self.state = FighterState.BLOCK
+            self.vel_x = 0
+            return
+
+        # 跳跃（优先级高于移动）
+        if keys[jump] and self.pos_y >= GROUND_Y:
+            self.vel_y = self.stats.jump_velocity
+            self.state = FighterState.JUMP
+
+        # 水平移动（只在地面上时才能改变 IDLE/WALK 状态）
         move_input = 0
         if keys[left]:
             move_input = -1
@@ -196,22 +207,14 @@ class Fighter(pygame.sprite.Sprite):
             move_input = 1
             self.facing_right = True
 
-        if move_input != 0:
-            self.vel_x = move_input * self.stats.move_speed
-            self.state = FighterState.WALK
-        else:
-            self.state = FighterState.IDLE
+        self.vel_x = move_input * self.stats.move_speed
 
-        # 跳跃
-        if keys[jump] and self.pos_y >= GROUND_Y:
-            self.vel_y = self.stats.jump_velocity
-            self.state = FighterState.JUMP
-
-        # 格挡
-        if keys[block]:
-            self.state = FighterState.BLOCK
-            self.vel_x = 0
-            return
+        # 只有在地面上且不在跳跃状态时才更新 IDLE/WALK 状态
+        if self.pos_y >= GROUND_Y and self.state != FighterState.JUMP:
+            if move_input != 0:
+                self.state = FighterState.WALK
+            else:
+                self.state = FighterState.IDLE
 
         # 攻击
         if self.attack_cooldown <= 0:
