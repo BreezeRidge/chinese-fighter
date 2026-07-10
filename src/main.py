@@ -2,14 +2,15 @@
 武林争霸 - 主程序
 重构：模块化设计，UI组件分离，提升可读性
 v0.3.0: 特殊招式系统
-v0.4.0: 场景美术升级
+v0.4.0: 场景美术升级 + 粒子特效
 """
 import pygame
 import sys
 from fighter import Fighter, FighterState
 from config import *
 from ui import UIManager
-from scene import SceneRenderer  # 新增：场景渲染器
+from scene import SceneRenderer
+from effects import AttackEffect, ScreenShake  # 新增：特效系统
 
 
 class GameState:
@@ -38,6 +39,10 @@ class Game:
 
         # 场景渲染器
         self.scene = SceneRenderer("bamboo_forest")  # 默认竹林场景
+
+        # 特效系统
+        self.effects = AttackEffect()
+        self.screen_shake = ScreenShake()
 
         # 游戏状态
         self.state = GameState.FIGHTING  # 暂时直接进入战斗，后续添加菜单
@@ -112,6 +117,10 @@ class Game:
         self.player1.update(dt, keys)
         self.player2.update(dt, keys)
 
+        # 更新特效
+        self.effects.update(dt)
+        self.screen_shake.update(dt)
+
         # 更新计时器
         self.round_time -= dt
         if self.round_time <= 0:
@@ -123,10 +132,38 @@ class Game:
         # P1 攻击 P2
         if self.player1.can_hit(self.player2):
             self.player1.hit(self.player2)
+            self._trigger_hit_effects(self.player1, self.player2)
 
         # P2 攻击 P1
         if self.player2.can_hit(self.player1):
             self.player2.hit(self.player1)
+            self._trigger_hit_effects(self.player2, self.player1)
+
+    def _trigger_hit_effects(self, attacker: Fighter, defender: Fighter):
+        """触发击中特效"""
+        # 计算击中位置
+        hit_x = defender.rect.centerx
+        hit_y = defender.rect.centery
+
+        # 根据攻击类型选择特效
+        if attacker.state == FighterState.SPECIAL:
+            self.effects.create_hit_effect(hit_x, hit_y,
+                                          1 if attacker.facing_right else -1,
+                                          "special")
+            self.screen_shake.trigger(intensity=8, duration=0.2)
+        elif attacker.state == FighterState.ATTACK_HEAVY:
+            self.effects.create_hit_effect(hit_x, hit_y,
+                                          1 if attacker.facing_right else -1,
+                                          "heavy")
+            self.screen_shake.trigger(intensity=5, duration=0.15)
+        else:
+            self.effects.create_hit_effect(hit_x, hit_y,
+                                          1 if attacker.facing_right else -1,
+                                          "normal")
+
+        # 格挡特效
+        if defender.state == FighterState.BLOCK:
+            self.effects.create_block_effect(hit_x, hit_y)
 
     def check_win_condition(self):
         """检查胜负条件"""
@@ -170,9 +207,17 @@ class Game:
         # 场景背景（替换纯色背景）
         self.scene.render(self.screen)
 
+        # 粒子特效（在角色后面）
+        self.effects.render(self.screen)
+
         # 角色
-        self.screen.blit(self.player1.image, self.player1.rect)
-        self.screen.blit(self.player2.image, self.player2.rect)
+        shake_offset = self.screen_shake.get_offset()
+        self.screen.blit(self.player1.image,
+                        (self.player1.rect.x + shake_offset[0],
+                         self.player1.rect.y + shake_offset[1]))
+        self.screen.blit(self.player2.image,
+                        (self.player2.rect.x + shake_offset[0],
+                         self.player2.rect.y + shake_offset[1]))
 
         # 调试模式（按F3切换）
         if hasattr(self, 'debug_mode') and self.debug_mode:
