@@ -142,14 +142,18 @@ class Fighter(pygame.sprite.Sprite):
         # 更新特殊招式冷却
         self.special_move_system.update(dt)
 
-        # 更新增益效果
-        self._update_buffs(dt)
+        # 更新增益效果 - 添加异常捕获
+        try:
+            self._update_buffs(dt)
+        except Exception as e:
+            print(f"[ERROR] _update_buffs: {e}")
+            self.active_buffs.clear()  # 清空错误的buff
 
         # 连击超时重置
         if self.combo_timer == 0:
             self.combo_count = 0
 
-        # 状态机分发
+        # 状态机分发 - 简化逻辑，优先处理输入
         if self.state == FighterState.HIT:
             self._update_hit_state(dt)
         elif self.state == FighterState.BLOCK:
@@ -159,7 +163,13 @@ class Fighter(pygame.sprite.Sprite):
         elif self.state in [FighterState.ATTACK_LIGHT, FighterState.ATTACK_HEAVY]:
             self._update_attack_state(dt)
         else:
-            self._handle_input(dt, keys)
+            # 默认状态：处理输入
+            try:
+                self._handle_input(dt, keys)
+            except Exception as e:
+                print(f"[ERROR] _handle_input: {e}")
+                import traceback
+                traceback.print_exc()
 
         # 物理更新
         self._apply_physics(dt)
@@ -450,12 +460,19 @@ class Fighter(pygame.sprite.Sprite):
 
     def _update_buffs(self, dt: float):
         """更新所有增益效果"""
+        if not self.active_buffs:
+            return
+
         # 更新所有增益的剩余时间
         expired_buffs = []
         for buff_name in list(self.active_buffs.keys()):
-            self.active_buffs[buff_name] -= dt
-            if self.active_buffs[buff_name] <= 0:
-                expired_buffs.append(buff_name)
+            buff_value = self.active_buffs[buff_name]
+
+            # 只处理数值型的buff（时间）
+            if isinstance(buff_value, (int, float)) and buff_value > 0:
+                self.active_buffs[buff_name] = buff_value - dt
+                if self.active_buffs[buff_name] <= 0:
+                    expired_buffs.append(buff_name)
 
         # 移除过期增益
         for buff_name in expired_buffs:
