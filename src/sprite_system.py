@@ -39,7 +39,8 @@ class SpriteSheet:
                 self.sheet = None
                 return
 
-            self.sheet = pygame.image.load(image_path).convert_alpha()
+            # 移除convert_alpha()以避免初始化顺序问题
+            self.sheet = pygame.image.load(image_path)
             print(f"✓ 精灵图加载成功: {image_path}, 大小: {self.sheet.get_size()}")
         except Exception as e:
             # 如果加载失败，创建占位符
