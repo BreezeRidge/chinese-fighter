@@ -1,12 +1,15 @@
 """
 武林争霸 - 主程序
 重构：模块化设计，UI组件分离，提升可读性
+v0.3.0: 特殊招式系统
+v0.4.0: 场景美术升级
 """
 import pygame
 import sys
 from fighter import Fighter, FighterState
 from config import *
 from ui import UIManager
+from scene import SceneRenderer  # 新增：场景渲染器
 
 
 class GameState:
@@ -32,6 +35,9 @@ class Game:
 
         # UI管理器
         self.ui = UIManager(self.screen)
+
+        # 场景渲染器
+        self.scene = SceneRenderer("bamboo_forest")  # 默认竹林场景
 
         # 游戏状态
         self.state = GameState.FIGHTING  # 暂时直接进入战斗，后续添加菜单
@@ -161,9 +167,8 @@ class Game:
 
     def render(self):
         """渲染画面"""
-        # 背景
-        self.screen.fill(Color.BG)
-        self._draw_ground()
+        # 场景背景（替换纯色背景）
+        self.scene.render(self.screen)
 
         # 角色
         self.screen.blit(self.player1.image, self.player1.rect)
