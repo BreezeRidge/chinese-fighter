@@ -15,14 +15,17 @@ def get_chinese_font(size: int) -> pygame.font.Font:
     获取支持中文的字体
     macOS/Windows/Linux 自动适配
     """
-    # macOS 中文字体路径
+    # macOS 中文字体路径（更新为实际存在的路径）
     font_paths = [
-        "/System/Library/Fonts/PingFang.ttc",  # 苹方（macOS 主力中文字体）
-        "/System/Library/Fonts/STHeiti Light.ttc",  # 华文黑体
+        "/System/Library/Fonts/Supplemental/Songti.ttc",  # 宋体（macOS）
+        "/System/Library/Fonts/Supplemental/STHeiti Light.ttc",  # 华文黑体
+        "/System/Library/Fonts/Supplemental/STHeiti Medium.ttc",
+        "/System/Library/Fonts/PingFang.ttc",  # 苹方（较新macOS）
         "/System/Library/Fonts/Hiragino Sans GB.ttc",  # 冬青黑体
         # Windows 中文字体
         "C:/Windows/Fonts/msyh.ttc",  # 微软雅黑
         "C:/Windows/Fonts/simhei.ttf",  # 黑体
+        "C:/Windows/Fonts/simsun.ttc",  # 宋体
         # Linux 中文字体
         "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",  # 文泉驿正黑
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",  # Noto Sans
@@ -33,10 +36,11 @@ def get_chinese_font(size: int) -> pygame.font.Font:
         if os.path.exists(font_path):
             try:
                 return pygame.font.Font(font_path, size)
-            except:
+            except Exception as e:
                 continue
 
     # 回退到默认字体（不支持中文，但至少不会崩溃）
+    print("警告: 未找到中文字体，使用默认字体（中文将显示为方块）")
     return pygame.font.Font(None, size)
 
 
