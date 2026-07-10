@@ -28,16 +28,25 @@ class SpriteSheet:
             frame_width: 单帧宽度
             frame_height: 单帧高度
         """
+        import os
+        self.frame_width = frame_width
+        self.frame_height = frame_height
+
         try:
+            # 检查文件是否存在
+            if not os.path.exists(image_path):
+                print(f"✗ 精灵图文件不存在: {image_path}")
+                self.sheet = None
+                return
+
             self.sheet = pygame.image.load(image_path).convert_alpha()
             print(f"✓ 精灵图加载成功: {image_path}, 大小: {self.sheet.get_size()}")
         except Exception as e:
-            # 如果文件不存在，创建占位符
+            # 如果加载失败，创建占位符
             print(f"✗ 精灵图加载失败: {image_path}, 错误: {e}")
+            import traceback
+            traceback.print_exc()
             self.sheet = None
-
-        self.frame_width = frame_width
-        self.frame_height = frame_height
 
     def get_frame(self, x: int, y: int) -> pygame.Surface:
         """
