@@ -1,10 +1,43 @@
 """
 UI管理器 - 负责所有界面渲染
 设计原则：分离UI逻辑，提升可维护性和视觉一致性
+修复：中文显示乱码问题 - 使用系统中文字体
 """
 import pygame
 from typing import Optional
+import sys
+import os
 from config import Color, WINDOW_WIDTH, WINDOW_HEIGHT
+
+
+def get_chinese_font(size: int) -> pygame.font.Font:
+    """
+    获取支持中文的字体
+    macOS/Windows/Linux 自动适配
+    """
+    # macOS 中文字体路径
+    font_paths = [
+        "/System/Library/Fonts/PingFang.ttc",  # 苹方（macOS 主力中文字体）
+        "/System/Library/Fonts/STHeiti Light.ttc",  # 华文黑体
+        "/System/Library/Fonts/Hiragino Sans GB.ttc",  # 冬青黑体
+        # Windows 中文字体
+        "C:/Windows/Fonts/msyh.ttc",  # 微软雅黑
+        "C:/Windows/Fonts/simhei.ttf",  # 黑体
+        # Linux 中文字体
+        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",  # 文泉驿正黑
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",  # Noto Sans
+    ]
+
+    # 尝试加载系统中文字体
+    for font_path in font_paths:
+        if os.path.exists(font_path):
+            try:
+                return pygame.font.Font(font_path, size)
+            except:
+                continue
+
+    # 回退到默认字体（不支持中文，但至少不会崩溃）
+    return pygame.font.Font(None, size)
 
 
 class UIManager:
@@ -16,11 +49,11 @@ class UIManager:
     def __init__(self, screen: pygame.Surface):
         self.screen = screen
 
-        # 字体
-        self.font_large = pygame.font.Font(None, 72)
-        self.font_medium = pygame.font.Font(None, 48)
-        self.font_small = pygame.font.Font(None, 36)
-        self.font_tiny = pygame.font.Font(None, 24)
+        # 字体（使用中文字体）
+        self.font_large = get_chinese_font(72)
+        self.font_medium = get_chinese_font(48)
+        self.font_small = get_chinese_font(36)
+        self.font_tiny = get_chinese_font(24)
 
         # UI常量
         self.margin = 40
@@ -133,7 +166,7 @@ class UIManager:
         name_x = x if not flipped else x + width - name_surface.get_width()
         self.screen.blit(name_surface, (name_x, y - 25))
 
-        # 血量数值（可选，显示百分比）
+        # 血量数值（显示百分比）
         hp_text = f"{int(health_percent * 100)}%"
         hp_surface = self.font_tiny.render(hp_text, True, Color.TEXT_PRIMARY)
         hp_text_x = x + width // 2 - hp_surface.get_width() // 2
@@ -158,7 +191,7 @@ class UIManager:
             combo: 连击数
         """
         # 连击文字（金色强调）
-        combo_text = f"{combo} HIT COMBO!"
+        combo_text = f"{combo} COMBO!"
         combo_surface = self.font_small.render(combo_text, True, Color.TEXT_GOLD)
 
         # 文字阴影效果
