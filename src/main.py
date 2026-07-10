@@ -3,6 +3,7 @@
 重构：模块化设计，UI组件分离，提升可读性
 v0.3.0: 特殊招式系统
 v0.4.0: 场景美术升级 + 粒子特效
+v0.5.0: 音效系统
 """
 import pygame
 import sys
@@ -10,7 +11,8 @@ from fighter import Fighter, FighterState
 from config import *
 from ui import UIManager
 from scene import SceneRenderer
-from effects import AttackEffect, ScreenShake  # 新增：特效系统
+from effects import AttackEffect, ScreenShake
+from sound import get_sound_manager  # 新增：音效系统
 
 
 class GameState:
@@ -43,6 +45,9 @@ class Game:
         # 特效系统
         self.effects = AttackEffect()
         self.screen_shake = ScreenShake()
+
+        # 音效系统
+        self.sound = get_sound_manager()
 
         # 游戏状态
         self.state = GameState.FIGHTING  # 暂时直接进入战斗，后续添加菜单
@@ -145,25 +150,29 @@ class Game:
         hit_x = defender.rect.centerx
         hit_y = defender.rect.centery
 
-        # 根据攻击类型选择特效
+        # 根据攻击类型选择特效和音效
         if attacker.state == FighterState.SPECIAL:
             self.effects.create_hit_effect(hit_x, hit_y,
                                           1 if attacker.facing_right else -1,
                                           "special")
             self.screen_shake.trigger(intensity=8, duration=0.2)
+            self.sound.play_hit_sound("special")  # ⭐ 音效
         elif attacker.state == FighterState.ATTACK_HEAVY:
             self.effects.create_hit_effect(hit_x, hit_y,
                                           1 if attacker.facing_right else -1,
                                           "heavy")
             self.screen_shake.trigger(intensity=5, duration=0.15)
+            self.sound.play_hit_sound("heavy")  # ⭐ 音效
         else:
             self.effects.create_hit_effect(hit_x, hit_y,
                                           1 if attacker.facing_right else -1,
                                           "normal")
+            self.sound.play_hit_sound("light")  # ⭐ 音效
 
-        # 格挡特效
+        # 格挡特效和音效
         if defender.state == FighterState.BLOCK:
             self.effects.create_block_effect(hit_x, hit_y)
+            self.sound.play_block_sound()  # ⭐ 音效
 
     def check_win_condition(self):
         """检查胜负条件"""
@@ -186,6 +195,7 @@ class Game:
         """游戏结束"""
         self.game_over = True
         self.winner = winner
+        self.sound.play_ko_sound()  # ⭐ KO音效
 
     def reset_game(self):
         """重置游戏"""
