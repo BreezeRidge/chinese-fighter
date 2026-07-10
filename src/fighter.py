@@ -180,18 +180,20 @@ class Fighter(pygame.sprite.Sprite):
 
     def _apply_physics(self, dt: float):
         """应用物理模拟（重力、速度、边界）"""
-        # 重力
+        # 应用重力
         if self.pos_y < GROUND_Y:
             self.vel_y += GRAVITY * dt
-        else:
+
+        # 先应用速度（关键：在边界检查之前）
+        self.pos_x += self.vel_x * dt
+        self.pos_y += self.vel_y * dt
+
+        # 地面碰撞检测（在应用速度之后）
+        if self.pos_y >= GROUND_Y:
             self.pos_y = GROUND_Y
             self.vel_y = 0
             if self.state == FighterState.JUMP:
                 self.state = FighterState.IDLE
-
-        # 应用速度
-        self.pos_x += self.vel_x * dt
-        self.pos_y += self.vel_y * dt
 
         # 边界限制
         half_width = self.stats.width // 2
