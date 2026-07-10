@@ -4,6 +4,7 @@
 v0.3.0: 特殊招式系统
 v0.4.0: 场景美术升级 + 粒子特效
 v0.5.0: 音效系统
+v0.6.0: 精灵图系统 + AI对战
 """
 import pygame
 import sys
@@ -12,7 +13,8 @@ from config import *
 from ui import UIManager
 from scene import SceneRenderer
 from effects import AttackEffect, ScreenShake
-from sound import get_sound_manager  # 新增：音效系统
+from sound import get_sound_manager
+from ai_system import AIController, AIKeyWrapper, AIDifficulty, AIPersonality  # 新增：音效系统
 
 
 class GameState:
@@ -48,6 +50,11 @@ class Game:
 
         # 音效系统
         self.sound = get_sound_manager()
+
+        # AI系统
+        self.ai_enabled = False  # 是否启用AI
+        self.ai_controller = None
+        self.ai_keys = None
 
         # 游戏状态
         self.state = GameState.FIGHTING  # 暂时直接进入战斗，后续添加菜单
@@ -109,6 +116,15 @@ class Game:
         elif key == pygame.K_F4:
             # 新增：武当 vs 峨眉
             self._init_fighters("wudang", "emei")
+        elif key == pygame.K_F5:
+            # 新增：启用/禁用AI（玩家 vs AI）
+            self._toggle_ai_mode()
+        elif key == pygame.K_F6:
+            # 新增：切换AI难度
+            self._cycle_ai_difficulty()
+        elif key == pygame.K_F7:
+            # 新增：切换AI性格
+            self._cycle_ai_personality()
 
     # ========================================================================
     # 游戏逻辑
@@ -118,9 +134,18 @@ class Game:
         """更新游戏逻辑"""
         keys = pygame.key.get_pressed()
 
+        # 更新AI控制器（如果启用）
+        if self.ai_enabled and self.ai_controller:
+            self.ai_controller.update(dt, self.player2, self.player1)
+            # 创建AI按键包装器
+            ai_keys = AIKeyWrapper(self.ai_controller, self.player2, self.player1)
+            ai_keys.update(dt)
+        else:
+            ai_keys = keys
+
         # 更新角色
         self.player1.update(dt, keys)
-        self.player2.update(dt, keys)
+        self.player2.update(dt, ai_keys)
 
         # 更新特效
         self.effects.update(dt)
@@ -208,6 +233,59 @@ class Game:
         self.game_over = False
         self.winner = None
 
+    def _toggle_ai_mode(self):
+        """切换AI模式（双人 vs 单人）"""
+        self.ai_enabled = not self.ai_enabled
+
+        if self.ai_enabled:
+            # 启用AI：创建AI控制器
+            self.ai_controller = AIController(AIDifficulty.MEDIUM, AIPersonality.BALANCED)
+            print(f"✓ AI模式已启用 (难度: MEDIUM, 性格: BALANCED)")
+        else:
+            # 禁用AI
+            self.ai_controller = None
+            print(f"✓ AI模式已禁用 (双人模式)")
+
+        # 重置游戏
+        self.reset_game()
+
+    def _cycle_ai_difficulty(self):
+        """循环切换AI难度"""
+        if not self.ai_enabled:
+            print("⚠️  请先启用AI模式（按F5）")
+            return
+
+        if not self.ai_controller:
+            return
+
+        # 循环：EASY -> MEDIUM -> HARD -> EASY
+        difficulties = [AIDifficulty.EASY, AIDifficulty.MEDIUM, AIDifficulty.HARD]
+        current_index = difficulties.index(self.ai_controller.difficulty)
+        next_index = (current_index + 1) % len(difficulties)
+
+        self.ai_controller.difficulty = difficulties[next_index]
+        self.ai_controller._set_difficulty_params()
+
+        print(f"✓ AI难度切换为: {self.ai_controller.difficulty.name}")
+
+    def _cycle_ai_personality(self):
+        """循环切换AI性格"""
+        if not self.ai_enabled:
+            print("⚠️  请先启用AI模式（按F5）")
+            return
+
+        if not self.ai_controller:
+            return
+
+        # 循环：AGGRESSIVE -> DEFENSIVE -> BALANCED -> AGGRESSIVE
+        personalities = [AIPersonality.AGGRESSIVE, AIPersonality.DEFENSIVE, AIPersonality.BALANCED]
+        current_index = personalities.index(self.ai_controller.personality)
+        next_index = (current_index + 1) % len(personalities)
+
+        self.ai_controller.personality = personalities[next_index]
+
+        print(f"✓ AI性格切换为: {self.ai_controller.personality.name}")
+
     # ========================================================================
     # 渲染
     # ========================================================================
@@ -272,3 +350,55 @@ class Game:
 if __name__ == "__main__":
     game = Game()
     game.run()
+    def _toggle_ai_mode(self):
+        """切换AI模式（双人 vs 单人）"""
+        self.ai_enabled = not self.ai_enabled
+
+        if self.ai_enabled:
+            # 启用AI：创建AI控制器
+            self.ai_controller = AIController(AIDifficulty.MEDIUM, AIPersonality.BALANCED)
+            print(f"✓ AI模式已启用 (难度: MEDIUM, 性格: BALANCED)")
+        else:
+            # 禁用AI
+            self.ai_controller = None
+            print(f"✓ AI模式已禁用 (双人模式)")
+
+        # 重置游戏
+        self.reset_game()
+
+    def _cycle_ai_difficulty(self):
+        """循环切换AI难度"""
+        if not self.ai_enabled:
+            print("⚠️  请先启用AI模式（按F5）")
+            return
+
+        if not self.ai_controller:
+            return
+
+        # 循环：EASY -> MEDIUM -> HARD -> EASY
+        difficulties = [AIDifficulty.EASY, AIDifficulty.MEDIUM, AIDifficulty.HARD]
+        current_index = difficulties.index(self.ai_controller.difficulty)
+        next_index = (current_index + 1) % len(difficulties)
+
+        self.ai_controller.difficulty = difficulties[next_index]
+        self.ai_controller._set_difficulty_params()
+
+        print(f"✓ AI难度切换为: {self.ai_controller.difficulty.name}")
+
+    def _cycle_ai_personality(self):
+        """循环切换AI性格"""
+        if not self.ai_enabled:
+            print("⚠️  请先启用AI模式（按F5）")
+            return
+
+        if not self.ai_controller:
+            return
+
+        # 循环：AGGRESSIVE -> DEFENSIVE -> BALANCED -> AGGRESSIVE
+        personalities = [AIPersonality.AGGRESSIVE, AIPersonality.DEFENSIVE, AIPersonality.BALANCED]
+        current_index = personalities.index(self.ai_controller.personality)
+        next_index = (current_index + 1) % len(personalities)
+
+        self.ai_controller.personality = personalities[next_index]
+
+        print(f"✓ AI性格切换为: {self.ai_controller.personality.name}")

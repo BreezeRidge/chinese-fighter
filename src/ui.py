@@ -269,7 +269,7 @@ class UIManager:
         self.screen.blit(hint_surface, hint_rect)
 
         # 调试提示（按F1/F2/F3/F4切换角色）
-        debug_hint = "F1:少林vs峨眉 F2:峨眉vs少林 F3:武当vs少林 F4:武当vs峨眉"
+        debug_hint = "F1-F4:切换角色 | F5:AI模式 | F6:AI难度 | F7:AI性格"
         debug_surface = self.font_tiny.render(debug_hint, True, (150, 150, 150))
         debug_rect = debug_surface.get_rect(
             center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 100)

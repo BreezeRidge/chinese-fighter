@@ -2,12 +2,14 @@
 角色类 - 处理战斗角色的状态、移动、攻击、碰撞
 重构：使用CharacterStats数据类，提升可扩展性
 v0.3.0: 添加特殊招式系统支持
+v0.6.0: 添加精灵图动画系统
 """
 import pygame
 from enum import Enum, auto
 from typing import Optional, Set
 from config import CharacterStats, CHARACTERS, GRAVITY, GROUND_Y, Color, FRICTION
 from special_moves import SpecialMove, SpecialMoveSystem, get_special_moves
+from sprite_system import AnimatedSprite, load_character_animations
 
 
 class FighterState(Enum):
@@ -99,8 +101,12 @@ class Fighter(pygame.sprite.Sprite):
         # 增益状态（buff）
         self.active_buffs = {}  # {buff_name: remaining_time}
 
-        # 渲染
-        self.image = self._create_character_surface()
+        # 精灵图动画系统
+        self.sprite = load_character_animations(character_key)
+        self.sprite.facing_right = self.facing_right
+
+        # 渲染（使用精灵图）
+        self.image = self.sprite.get_current_frame()
         self.rect = self.image.get_rect(bottomleft=(int(self.pos_x), int(self.pos_y)))
 
         # 攻击判定
@@ -174,6 +180,14 @@ class Fighter(pygame.sprite.Sprite):
         # 物理更新
         self._apply_physics(dt)
         self._apply_friction()
+
+        # 更新精灵动画
+        self.sprite.update(dt)
+        self.sprite.facing_right = self.facing_right
+        self._update_sprite_animation()
+
+        # 更新渲染图像
+        self.image = self.sprite.get_current_frame()
 
         # 同步渲染位置
         self.rect.bottomleft = (int(self.pos_x), int(self.pos_y))
@@ -507,6 +521,24 @@ class Fighter(pygame.sprite.Sprite):
     def is_invincible(self) -> bool:
         """检查是否处于无敌状态"""
         return "invincible" in self.active_buffs
+
+    def _update_sprite_animation(self):
+        """根据当前状态更新精灵动画"""
+        # 状态到动画的映射
+        state_to_anim = {
+            FighterState.IDLE: "idle",
+            FighterState.WALK: "walk",
+            FighterState.JUMP: "jump",
+            FighterState.ATTACK_LIGHT: "attack_light",
+            FighterState.ATTACK_HEAVY: "attack_heavy",
+            FighterState.HIT: "hit",
+            FighterState.BLOCK: "idle",  # 暂时使用idle
+            FighterState.SPECIAL: "attack_heavy",  # 暂时使用重攻击
+            FighterState.BUFF: "idle",
+        }
+
+        animation_name = state_to_anim.get(self.state, "idle")
+        self.sprite.play(animation_name, reset=False)
 
     # ========================================================================
     # 碰撞检测辅助
