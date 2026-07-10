@@ -83,10 +83,16 @@ class Game:
         elif key == pygame.K_r and self.game_over:
             self.reset_game()
         elif key == pygame.K_F1:
-            # 调试：切换角色
+            # 调试：切换角色组合
             self._init_fighters("shaolin", "emei")
         elif key == pygame.K_F2:
             self._init_fighters("emei", "shaolin")
+        elif key == pygame.K_F3:
+            # 新增：武当 vs 少林
+            self._init_fighters("wudang", "shaolin")
+        elif key == pygame.K_F4:
+            # 新增：武当 vs 峨眉
+            self._init_fighters("wudang", "emei")
 
     # ========================================================================
     # 游戏逻辑

@@ -1,11 +1,13 @@
 """
 角色类 - 处理战斗角色的状态、移动、攻击、碰撞
 重构：使用CharacterStats数据类，提升可扩展性
+v0.3.0: 添加特殊招式系统支持
 """
 import pygame
 from enum import Enum, auto
 from typing import Optional, Set
 from config import CharacterStats, CHARACTERS, GRAVITY, GROUND_Y, Color, FRICTION
+from special_moves import SpecialMove, SpecialMoveSystem, get_special_moves
 
 
 class FighterState(Enum):
@@ -15,8 +17,10 @@ class FighterState(Enum):
     JUMP = auto()
     ATTACK_LIGHT = auto()
     ATTACK_HEAVY = auto()
+    SPECIAL = auto()  # 新增：特殊招式状态
     HIT = auto()
     BLOCK = auto()
+    BUFF = auto()  # 新增：增益状态（金刚身、疾风步等）
 
 
 class AttackBox:
@@ -86,6 +90,15 @@ class Fighter(pygame.sprite.Sprite):
         self.combo_count = 0
         self.combo_timer = 0.0
 
+        # 特殊招式系统
+        self.character_key = character_key
+        self.special_moves = get_special_moves(character_key)
+        self.special_move_system = SpecialMoveSystem()
+        self.active_special: Optional[SpecialMove] = None  # 当前激活的特殊招式
+
+        # 增益状态（buff）
+        self.active_buffs = {}  # {buff_name: remaining_time}
+
         # 渲染
         self.image = self._create_character_surface()
         self.rect = self.image.get_rect(bottomleft=(int(self.pos_x), int(self.pos_y)))
@@ -126,6 +139,12 @@ class Fighter(pygame.sprite.Sprite):
         self.attack_cooldown = max(0, self.attack_cooldown - dt)
         self.combo_timer = max(0, self.combo_timer - dt)
 
+        # 更新特殊招式冷却
+        self.special_move_system.update(dt)
+
+        # 更新增益效果
+        self._update_buffs(dt)
+
         # 连击超时重置
         if self.combo_timer == 0:
             self.combo_count = 0
@@ -135,6 +154,8 @@ class Fighter(pygame.sprite.Sprite):
             self._update_hit_state(dt)
         elif self.state == FighterState.BLOCK:
             self._update_block_state(dt, keys)
+        elif self.state == FighterState.SPECIAL:
+            self._update_special_state(dt)
         elif self.state in [FighterState.ATTACK_LIGHT, FighterState.ATTACK_HEAVY]:
             self._update_attack_state(dt)
         else:
@@ -209,6 +230,12 @@ class Fighter(pygame.sprite.Sprite):
 
         self.vel_x = move_input * self.stats.move_speed
 
+        # 应用增益效果的速度修正
+        if "speed_boost" in self.active_buffs:
+            self.vel_x *= (1 + self.active_buffs["speed_boost"])
+        if "speed_penalty" in self.active_buffs:
+            self.vel_x *= (1 + self.active_buffs["speed_penalty"])
+
         # 只有在地面上且不在跳跃状态时才更新 IDLE/WALK 状态
         if self.pos_y >= GROUND_Y and self.state != FighterState.JUMP:
             if move_input != 0:
@@ -222,6 +249,11 @@ class Fighter(pygame.sprite.Sprite):
                 self._start_attack(light=True)
             elif keys[heavy]:
                 self._start_attack(light=False)
+
+        # 特殊招式（Q/E键）
+        for special_move in self.special_moves:
+            if keys[special_move.key] and self.special_move_system.can_use(special_move):
+                self._use_special_move(special_move)
 
     # ========================================================================
     # 攻击系统
@@ -299,10 +331,24 @@ class Fighter(pygame.sprite.Sprite):
             damage: 伤害值
             knockback_direction: 击退方向（1=右，-1=左）
         """
+        # 无敌状态免疫伤害
+        if self.is_invincible():
+            return
+
+        # 增益效果减伤
+        damage_reduction = self.get_damage_reduction()
+        if damage_reduction > 0:
+            damage = int(damage * (1 - damage_reduction))
+
         # 格挡减伤
         if self.state == FighterState.BLOCK:
             damage = int(damage * (1 - self.stats.block_reduction))
             knockback_direction *= 0.5  # 格挡减少击退
+
+            # 太极气盾反伤
+            if "reflect_damage" in self.active_buffs:
+                # 这里需要通过游戏主循环处理反伤，暂时标记
+                self.active_buffs["pending_reflect"] = damage * self.active_buffs["reflect_damage"]
 
         self.health = max(0, self.health - damage)
         self.state = FighterState.HIT
@@ -327,6 +373,121 @@ class Fighter(pygame.sprite.Sprite):
 
         if not keys[block_key]:
             self.state = FighterState.IDLE
+
+    # ========================================================================
+    # 特殊招式系统
+    # ========================================================================
+
+    def _use_special_move(self, special_move: SpecialMove):
+        """
+        使用特殊招式
+
+        Args:
+            special_move: 特殊招式对象
+        """
+        # 启动冷却
+        self.special_move_system.use(special_move)
+        self.active_special = special_move
+        self.state_timer = 0
+
+        # 根据招式类型执行不同效果
+        if special_move.damage > 0:
+            # 攻击型招式
+            self.state = FighterState.SPECIAL
+            self._create_attack_box(
+                special_move.range,
+                special_move.damage,
+                special_move.knockback
+            )
+        else:
+            # 增益型招式
+            self.state = FighterState.BUFF
+            self._apply_special_buff(special_move)
+
+    def _update_special_state(self, dt: float):
+        """更新特殊招式状态"""
+        if not self.active_special:
+            self.state = FighterState.IDLE
+            return
+
+        if self.state_timer >= self.active_special.duration:
+            self.state = FighterState.IDLE
+            self.state_timer = 0
+            self.attack_box = None
+            self.active_special = None
+        else:
+            # 持续更新攻击框位置
+            if self.attack_box:
+                if self.facing_right:
+                    self.attack_box.rect.x = self.pos_x + self.stats.width // 2
+                else:
+                    range_px = self.attack_box.rect.width
+                    self.attack_box.rect.x = self.pos_x - range_px
+
+    def _apply_special_buff(self, special_move: SpecialMove):
+        """
+        应用特殊招式增益效果
+
+        Args:
+            special_move: 特殊招式对象
+        """
+        from buff_effects import (
+            apply_shaolin_body_buff,
+            apply_emei_speed_buff,
+            apply_wudang_shield_buff
+        )
+
+        # 根据角色和招式名称应用对应增益
+        if self.character_key == "shaolin" and special_move.name == "金刚身":
+            apply_shaolin_body_buff(self)
+        elif self.character_key == "emei" and special_move.name == "疾风步":
+            apply_emei_speed_buff(self)
+        elif self.character_key == "wudang" and special_move.name == "太极气盾":
+            apply_wudang_shield_buff(self)
+        elif special_move.name == "闪避":
+            # 默认角色的闪避
+            self.active_buffs["invincible"] = special_move.duration
+
+    def _update_buffs(self, dt: float):
+        """更新所有增益效果"""
+        # 更新所有增益的剩余时间
+        expired_buffs = []
+        for buff_name in list(self.active_buffs.keys()):
+            self.active_buffs[buff_name] -= dt
+            if self.active_buffs[buff_name] <= 0:
+                expired_buffs.append(buff_name)
+
+        # 移除过期增益
+        for buff_name in expired_buffs:
+            del self.active_buffs[buff_name]
+
+    def get_effective_move_speed(self) -> float:
+        """获取考虑增益后的实际移动速度"""
+        speed = self.stats.move_speed
+
+        # 金刚身减速
+        if "speed_penalty" in self.active_buffs:
+            speed *= (1 + self.active_buffs["speed_penalty"])
+
+        # 疾风步加速
+        if "speed_boost" in self.active_buffs:
+            speed *= (1 + self.active_buffs["speed_boost"])
+
+        return speed
+
+    def get_damage_reduction(self) -> float:
+        """获取当前伤害减免比例（0-1）"""
+        reduction = 0.0
+
+        # 金刚身减伤
+        if "damage_reduction" in self.active_buffs:
+            reduction = max(reduction, self.active_buffs["damage_reduction"])
+
+        return reduction
+
+    def is_invincible(self) -> bool:
+        """检查是否处于无敌状态"""
+        return "invincible" in self.active_buffs
 
     # ========================================================================
     # 碰撞检测辅助

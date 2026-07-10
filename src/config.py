@@ -103,11 +103,30 @@ EMEI_SWORDSMAN = CharacterStats(
     block_reduction=0.4,
 )
 
+WUDANG_DAOIST = CharacterStats(
+    name="武当道士",
+    max_health=110,  # 中等血量
+    move_speed=300,  # 中等速度
+    jump_velocity=-600,
+    width=60,
+    height=100,
+    light_damage=5,
+    light_range=90,
+    light_duration=0.2,
+    heavy_damage=14,
+    heavy_range=95,
+    heavy_duration=0.35,
+    heavy_knockback=180,
+    hit_stun_duration=0.3,
+    block_reduction=0.7,  # 格挡效果最好
+)
+
 # 角色选择字典
 CHARACTERS = {
     "default": DEFAULT_FIGHTER,
     "shaolin": SHAOLIN_MONK,
     "emei": EMEI_SWORDSMAN,
+    "wudang": WUDANG_DAOIST,
 }
 
 # ============================================================================
