@@ -216,6 +216,7 @@ def load_character_animations(character_key: str) -> AnimatedSprite:
     Returns:
         AnimatedSprite对象
     """
+    import os
     sprite = AnimatedSprite()
 
     # 定义角色颜色（占位符使用）
@@ -228,11 +229,20 @@ def load_character_animations(character_key: str) -> AnimatedSprite:
 
     color = colors.get(character_key, colors["default"])
 
+    # 构建正确的路径（相对于项目根目录）
+    # main.py在src/目录下运行，需要回到上级目录
+    base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sprite_path = os.path.join(base_path, "assets", "sprites", f"{character_key}.png")
+
+    print(f"[DEBUG] 尝试加载精灵图: {sprite_path}")
+    print(f"[DEBUG] 文件存在: {os.path.exists(sprite_path)}")
+
     # 尝试加载精灵图（如果不存在则使用占位符）
     try:
-        sprite_sheet = SpriteSheet(f"assets/sprites/{character_key}.png", 64, 64)
+        sprite_sheet = SpriteSheet(sprite_path, 64, 64)
     except:
         # 创建占位符精灵图
+        print(f"[DEBUG] 使用占位符精灵图: {character_key}")
         sprite_sheet = create_placeholder_spritesheet(character_key, color)
 
     # 定义动画
