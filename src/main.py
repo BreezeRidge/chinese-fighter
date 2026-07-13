@@ -88,8 +88,46 @@ class Game:
 
             self.render()
 
+        # 游戏结束后询问是否重新开始
+        self._show_restart_prompt()
         pygame.quit()
         sys.exit()
+
+    def _show_restart_prompt(self):
+        """显示重启提示对话框"""
+        # 创建提示界面
+        font = pygame.font.Font(None, 48)
+        prompt_text = font.render("是否重新开始游戏？", True, Color.TEXT_PRIMARY)
+        hint_text = pygame.font.Font(None, 32).render("Y - 重新开始  |  N - 退出", True, Color.TEXT_GOLD)
+
+        # 背景遮罩
+        overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
+        overlay.set_alpha(200)
+        overlay.fill((0, 0, 0))
+
+        # 渲染提示框
+        self.screen.blit(overlay, (0, 0))
+        self.screen.blit(prompt_text,
+                        (WINDOW_WIDTH // 2 - prompt_text.get_width() // 2, WINDOW_HEIGHT // 2 - 50))
+        self.screen.blit(hint_text,
+                        (WINDOW_WIDTH // 2 - hint_text.get_width() // 2, WINDOW_HEIGHT // 2 + 20))
+        pygame.display.flip()
+
+        # 等待用户选择
+        waiting = True
+        while waiting:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    waiting = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_y:
+                        # 重新开始
+                        self.running = True
+                        self.reset_game()
+                        self.run()  # 递归调用重新开始游戏循环
+                        waiting = False
+                    elif event.key == pygame.K_n or event.key == pygame.K_ESCAPE:
+                        waiting = False
 
     def handle_events(self):
         """事件处理"""
@@ -350,6 +388,10 @@ class Game:
 if __name__ == "__main__":
     game = Game()
     game.run()
+
+
+# 以下是重复的代码，应该被删除（已在上方Game类中定义）
+"""
     def _toggle_ai_mode(self):
         """切换AI模式（双人 vs 单人）"""
         self.ai_enabled = not self.ai_enabled
