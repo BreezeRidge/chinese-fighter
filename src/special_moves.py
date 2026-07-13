@@ -22,6 +22,7 @@ class SpecialMove:
         knockback: 击退力度
         cost: 能量消耗（预留，后续实现能量系统）
         description: 招式描述
+        animation_type: 动画类型（"dash"=冲刺类, "charge"=蓄力类, "attack"=攻击类）
     """
     name: str
     key: int
@@ -32,6 +33,7 @@ class SpecialMove:
     knockback: float
     cost: int = 0
     description: str = ""
+    animation_type: str = "attack"  # 默认攻击类动画
 
 
 class SpecialMoveSystem:
@@ -78,7 +80,8 @@ SHAOLIN_SPECIAL_1 = SpecialMove(
     duration=0.6,
     knockback=300,
     cost=30,
-    description="蓄力重击，造成巨额伤害和击退"
+    description="蓄力重击，造成巨额伤害和击退",
+    animation_type="charge"  # 蓄力类动画
 )
 
 SHAOLIN_SPECIAL_2 = SpecialMove(
@@ -90,7 +93,8 @@ SHAOLIN_SPECIAL_2 = SpecialMove(
     duration=3.0,  # 持续3秒
     knockback=0,
     cost=50,
-    description="3秒内受到伤害减少70%，移动速度-30%"
+    description="3秒内受到伤害减少70%，移动速度-30%",
+    animation_type="charge"  # 蓄力爆气动画
 )
 
 # 峨眉剑客 - 速度型
@@ -103,7 +107,8 @@ EMEI_SPECIAL_1 = SpecialMove(
     duration=0.3,
     knockback=100,
     cost=25,
-    description="快速前冲斩击，超远攻击范围"
+    description="快速前冲斩击，超远攻击范围",
+    animation_type="dash"  # 冲刺类动画
 )
 
 EMEI_SPECIAL_2 = SpecialMove(
@@ -115,7 +120,8 @@ EMEI_SPECIAL_2 = SpecialMove(
     duration=2.0,  # 持续2秒
     knockback=0,
     cost=35,
-    description="2秒内移动速度+100%，攻击速度+50%"
+    description="2秒内移动速度+100%，攻击速度+50%",
+    animation_type="dash"  # 冲刺加速动画
 )
 
 # 武当道士 - 防御型（新角色）
@@ -128,7 +134,8 @@ WUDANG_SPECIAL_1 = SpecialMove(
     duration=0.4,
     knockback=400,  # 超强击退
     cost=30,
-    description="四两拨千斤，低伤害但超强击退"
+    description="四两拨千斤，低伤害但超强击退",
+    animation_type="charge"  # 蓄力推出动画
 )
 
 WUDANG_SPECIAL_2 = SpecialMove(
@@ -140,7 +147,8 @@ WUDANG_SPECIAL_2 = SpecialMove(
     duration=4.0,  # 持续4秒
     knockback=0,
     cost=60,
-    description="4秒内格挡成功时反弹50%伤害给攻击者"
+    description="4秒内格挡成功时反弹50%伤害给攻击者",
+    animation_type="charge"  # 蓄力护盾动画
 )
 
 # 默认角色（无特殊招式）
@@ -153,7 +161,8 @@ DEFAULT_SPECIAL_1 = SpecialMove(
     duration=0.5,
     knockback=150,
     cost=20,
-    description="增强版重攻击"
+    description="增强版重攻击",
+    animation_type="attack"  # 普通攻击类动画
 )
 
 DEFAULT_SPECIAL_2 = SpecialMove(
@@ -165,7 +174,8 @@ DEFAULT_SPECIAL_2 = SpecialMove(
     duration=0.5,
     knockback=0,
     cost=25,
-    description="短暂无敌"
+    description="短暂无敌",
+    animation_type="dash"  # 闪避冲刺动画
 )
 
 

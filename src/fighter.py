@@ -524,6 +524,21 @@ class Fighter(pygame.sprite.Sprite):
 
     def _update_sprite_animation(self):
         """根据当前状态更新精灵动画"""
+        # 优先检查特殊招式动画
+        if self.state == FighterState.SPECIAL and self.active_special:
+            # 根据特殊招式的动画类型选择动画
+            animation_map = {
+                "dash": "dash",      # 冲刺类 → 第2行（奔跑动画）
+                "charge": "charge",  # 蓄力类 → 第7行（爆气动画）
+                "attack": "attack_heavy",  # 攻击类 → 第5行（重攻击）
+            }
+            animation_name = animation_map.get(
+                self.active_special.animation_type,
+                "attack_heavy"
+            )
+            self.sprite.play(animation_name, reset=False)
+            return
+
         # 状态到动画的映射
         state_to_anim = {
             FighterState.IDLE: "idle",
@@ -533,8 +548,8 @@ class Fighter(pygame.sprite.Sprite):
             FighterState.ATTACK_HEAVY: "attack_heavy",
             FighterState.HIT: "hit",
             FighterState.BLOCK: "idle",  # 暂时使用idle
-            FighterState.SPECIAL: "attack_heavy",  # 暂时使用重攻击
-            FighterState.BUFF: "idle",
+            FighterState.SPECIAL: "attack_heavy",  # 默认重攻击（不应到达此处）
+            FighterState.BUFF: "charge",  # 增益状态使用蓄力动画
         }
 
         animation_name = state_to_anim.get(self.state, "idle")
