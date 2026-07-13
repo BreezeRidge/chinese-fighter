@@ -38,29 +38,35 @@ class SoundManager:
         """
         from config import Paths
 
-        # 定义音效文件映射
+        # 定义音效文件映射（支持.wav和.ogg格式）
         sound_files = {
-            "hit_light": f"{Paths.AUDIO}/hit_light.wav",
-            "hit_heavy": f"{Paths.AUDIO}/hit_heavy.wav",
-            "hit_special": f"{Paths.AUDIO}/hit_special.wav",
-            "block": f"{Paths.AUDIO}/block.wav",
-            "jump": f"{Paths.AUDIO}/jump.wav",
-            "buff": f"{Paths.AUDIO}/buff.wav",
-            "ko": f"{Paths.AUDIO}/ko.wav",
+            "hit_light": [f"{Paths.AUDIO}/hit_light.ogg", f"{Paths.AUDIO}/hit_light.wav"],
+            "hit_heavy": [f"{Paths.AUDIO}/hit_heavy.ogg", f"{Paths.AUDIO}/hit_heavy.wav"],
+            "hit_special": [f"{Paths.AUDIO}/hit_special.ogg", f"{Paths.AUDIO}/hit_special.wav"],
+            "block": [f"{Paths.AUDIO}/block.ogg", f"{Paths.AUDIO}/block.wav"],
+            "jump": [f"{Paths.AUDIO}/jump.ogg", f"{Paths.AUDIO}/jump.wav"],
+            "buff": [f"{Paths.AUDIO}/buff.ogg", f"{Paths.AUDIO}/buff.wav"],
+            "ko": [f"{Paths.AUDIO}/ko.ogg", f"{Paths.AUDIO}/ko.wav"],
         }
 
         # 尝试加载音效文件
-        for sound_name, file_path in sound_files.items():
-            if os.path.exists(file_path):
-                try:
-                    sound = pygame.mixer.Sound(file_path)
-                    sound.set_volume(self.sfx_volume)
-                    self.sounds[sound_name] = sound
-                    print(f"✓ 加载音效: {sound_name}")
-                except:
-                    print(f"✗ 无法加载音效: {sound_name}")
-            else:
+        for sound_name, file_paths in sound_files.items():
+            loaded = False
+            for file_path in file_paths:
+                if os.path.exists(file_path):
+                    try:
+                        sound = pygame.mixer.Sound(file_path)
+                        sound.set_volume(self.sfx_volume)
+                        self.sounds[sound_name] = sound
+                        print(f"✓ 加载音效: {sound_name} ({os.path.basename(file_path)})")
+                        loaded = True
+                        break
+                    except Exception as e:
+                        print(f"✗ 无法加载音效: {sound_name} - {e}")
+
+            if not loaded:
                 # 文件不存在，使用程序生成音效
+                print(f"→ 使用程序生成音效: {sound_name}")
                 self.sounds[sound_name] = self._generate_simple_sound(sound_name)
 
     def _generate_simple_sound(self, sound_type: str) -> pygame.mixer.Sound:
