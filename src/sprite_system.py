@@ -245,14 +245,14 @@ def load_character_animations(character_key: str) -> AnimatedSprite:
         print(f"[DEBUG] 使用占位符精灵图: {character_key}")
         sprite_sheet = create_placeholder_spritesheet(character_key, color)
 
-    # 定义动画
+    # 定义动画（支持新的8帧高质量精灵图）
     animations_def = {
-        "idle": (0, 4, 0.2),      # 行0，4帧，0.2秒/帧
-        "walk": (1, 6, 0.1),      # 行1，6帧，0.1秒/帧
-        "jump": (2, 4, 0.15),     # 行2，4帧，0.15秒/帧
-        "attack_light": (3, 4, 0.1),  # 行3，4帧，0.1秒/帧
-        "attack_heavy": (4, 6, 0.12),  # 行4，6帧，0.12秒/帧
-        "hit": (5, 3, 0.1),       # 行5，3帧，0.1秒/帧
+        "idle": (0, 8, 0.15),         # 行0，8帧，0.15秒/帧 (更流畅)
+        "walk": (1, 8, 0.08),         # 行1，8帧，0.08秒/帧 (更流畅)
+        "jump": (3, 8, 0.12),         # 行3，8帧，0.12秒/帧
+        "attack_light": (4, 8, 0.08), # 行4，8帧，0.08秒/帧 (攻击1)
+        "attack_heavy": (5, 8, 0.1),  # 行5，8帧，0.1秒/帧 (攻击2)
+        "hit": (6, 8, 0.08),          # 行6，8帧，0.08秒/帧 (受伤)
     }
 
     # 加载所有动画
