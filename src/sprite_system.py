@@ -239,7 +239,7 @@ def load_character_animations(character_key: str) -> AnimatedSprite:
 
     # 尝试加载精灵图（如果不存在则使用占位符）
     try:
-        sprite_sheet = SpriteSheet(sprite_path, 64, 64)
+        sprite_sheet = SpriteSheet(sprite_path, 50, 50)
     except:
         # 创建占位符精灵图
         print(f"[DEBUG] 使用占位符精灵图: {character_key}")
