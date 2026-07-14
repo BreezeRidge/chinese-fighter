@@ -14,29 +14,36 @@ def get_chinese_font(size: int) -> pygame.font.Font:
     """
     获取支持中文的字体
     macOS/Windows/Linux 自动适配
+
+    重要：优先使用 .ttf 单字体文件，避免使用 .ttc 集合字体。
+    某些系统 .ttc 字体（如 Songti.ttc）在 macOS + SDL2_ttf 2.24 下
+    存在内存管理缺陷，在持续渲染时会触发段错误(SIGSEGV)。
+    详见 PERFORMANCE.md 的字体崩溃分析。
     """
-    # macOS 中文字体路径（更新为实际存在的路径）
+    # 字体优先级：.ttf 单字体（稳定）优先，.ttc 集合字体（可能崩溃）作为兜底
     font_paths = [
-        "/System/Library/Fonts/Supplemental/Songti.ttc",  # 宋体（macOS）
-        "/System/Library/Fonts/Supplemental/STHeiti Light.ttc",  # 华文黑体
-        "/System/Library/Fonts/Supplemental/STHeiti Medium.ttc",
-        "/System/Library/Fonts/PingFang.ttc",  # 苹方（较新macOS）
-        "/System/Library/Fonts/Hiragino Sans GB.ttc",  # 冬青黑体
-        # Windows 中文字体
-        "C:/Windows/Fonts/msyh.ttc",  # 微软雅黑
+        # ---- 首选：.ttf 单字体，压力测试验证稳定 ----
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",  # macOS，含中文，稳定
+        # Windows .ttf 中文字体
         "C:/Windows/Fonts/simhei.ttf",  # 黑体
-        "C:/Windows/Fonts/simsun.ttc",  # 宋体
-        # Linux 中文字体
+        "C:/Windows/Fonts/simsun.ttf",  # 宋体（部分系统为.ttf）
+        # Linux .ttf/.otf 中文字体
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttf",  # 文泉驿微米黑
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.otf",
+
+        # ---- 兜底：.ttc 集合字体（macOS 上可能不稳定，仅在无 .ttf 时使用）----
+        "/System/Library/Fonts/Hiragino Sans GB.ttc",  # 冬青黑体
+        "/System/Library/Fonts/STHeiti Light.ttc",  # 华文黑体
+        "C:/Windows/Fonts/msyh.ttc",  # 微软雅黑
         "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",  # 文泉驿正黑
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",  # Noto Sans
     ]
 
-    # 尝试加载系统中文字体
+    # 尝试加载中文字体（按稳定性优先级）
     for font_path in font_paths:
         if os.path.exists(font_path):
             try:
                 return pygame.font.Font(font_path, size)
-            except Exception as e:
+            except Exception:
                 continue
 
     # 回退到默认字体（不支持中文，但至少不会崩溃）

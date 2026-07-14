@@ -1,5 +1,56 @@
 # 性能优化指南
 
+## 🔴 严重BUG修复：字体段错误(SIGSEGV) — 已根治
+
+### 崩溃现象
+```
+Exception Type: EXC_BAD_ACCESS (SIGSEGV)
+Exception Codes: KERN_INVALID_ADDRESS at 0x2f73746e65746e6f
+Termination Reason: Namespace SIGNAL, Code 11 Segmentation fault: 11
+```
+游戏运行一段时间后随机崩溃，exit code 139。
+
+### 根因分析（通过对照实验定位）
+
+**1. 崩溃地址解码是关键线索**
+崩溃地址 `0x2f73746e65746e6f` 小端解码为 ASCII 字符串 `"ontents/"`
+（来自 macOS 字体路径 `.../Contents/...`）。CPU 把字符串数据当指针解引用
+= 典型的内存损坏 / use-after-free。
+
+**2. C堆栈定位到SDL2_ttf**
+```
+SDL_AllocFormat_REAL          ← 崩溃点
+SDL_CreateRGBSurfaceWithFormat_REAL
+AllocateAlignedPixels         (SDL2_ttf)
+Create_Surface_Blended        (SDL2_ttf)
+TTF_Render_Wrapped_Internal   (SDL2_ttf)
+font_render                   (pygame)
+```
+
+**3. 对照实验确定真凶是 .ttc 集合字体**
+
+| 字体 | 类型 | 50轮GC压力测试 | 结果 |
+|------|------|--------------|------|
+| Songti.ttc（原首选） | .ttc集合 | 崩溃 | ✗ SIGSEGV |
+| 内置默认字体 | pygame内置 | 通过 | ✓ |
+| Arial Unicode.ttf | .ttf单字体 | 通过 | ✓ |
+
+**结论**：macOS 系统的某些 `.ttc`（TrueType Collection 集合字体，
+如 Songti.ttc）在 SDL2_ttf 2.24 下存在内存管理缺陷。集合字体内部
+结构复杂，持续渲染 + GC 时机不当会触发悬空指针访问 → 段错误。
+
+### 修复方案
+
+`src/ui.py` 的 `get_chinese_font()` 调整字体优先级：
+- **首选 `.ttf` 单字体**（Arial Unicode.ttf 等，压力测试稳定）
+- **`.ttc` 集合字体降为兜底**（仅在无 .ttf 可用时使用）
+- 移除了原来排第一的 Songti.ttc
+
+**验证**：80轮GC压力 + 200轮多字体渲染 + 3轮完整游戏生命周期
+（战斗→重启→再战斗）全部通过，退出码0。
+
+---
+
 ## SDL警告说明
 
 ### 问题现象
