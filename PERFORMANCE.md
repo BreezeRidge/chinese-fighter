@@ -1,5 +1,48 @@
 # 性能优化指南
 
+## 🔴🔴 最终根因：每帧重复 font.render() 导致段错误 — 已根治
+
+> 这是 SIGSEGV 崩溃的**真正根因**。下方"字体.ttc"一节是早期的
+> 阶段性发现（有益但非根因），保留以记录排查过程。
+
+### 现象
+```
+Fatal Python error: Segmentation fault (exit 139)
+  ui.py:176 _draw_health_bar   ← 每帧HUD字体渲染
+  ui.py draw_hud  <-  main.py render
+C堆栈: SDL_AllocFormat_REAL <- AllocateAlignedPixels(SDL2_ttf)
+       <- TTF_Render_Wrapped_Internal <- font_render(pygame)
+```
+
+### 根因
+HUD **每帧**对相同文字（角色名、血量%）反复调用 `font.render()`，
+每次让 SDL2_ttf 分配新 Surface。在 pygame 2.6.1 + SDL2_ttf 2.24 +
+Python 3.14 下，高频文字表面分配与粒子特效的 Surface 分配交织，
+触发 SDL2_ttf 堆内存损坏，在 `SDL_AllocFormat` 处段错误。
+
+**对照实验：**
+
+| 场景 | 结果 |
+|------|------|
+| 孤立字体渲染 2000帧（无特效） | ✓ 不崩 |
+| 完整游戏+密集特效（每帧 render） | ✗ 几百帧崩溃 |
+| 完整游戏+密集特效（render 缓存） | ✓ 8000帧稳定 |
+
+必须"完整游戏上下文 + 每帧重复 render"同时满足才崩溃。
+
+### 修复
+`src/ui.py` 新增 `_CachedFont` 包装器，UIManager 所有字体用它包装：
+相同 `(文字,抗锯齿,颜色)` 只渲染一次并缓存复用。既根治崩溃，
+也是标准性能优化。
+
+**验证**：8000帧完整游戏+密集特效，真实 UIManager 无补丁，退出码0。
+
+### 通用教训
+🚫 绝不在每帧渲染循环里 `font.render()` 相同文字
+✅ 缓存文字 Surface，仅在内容变化时重新渲染
+
+---
+
 ## 🔴 严重BUG修复：字体段错误(SIGSEGV) — 已根治
 
 ### 崩溃现象

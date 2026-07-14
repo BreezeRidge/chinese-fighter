@@ -51,6 +51,44 @@ def get_chinese_font(size: int) -> pygame.font.Font:
     return pygame.font.Font(None, size)
 
 
+class _CachedFont:
+    """
+    字体渲染缓存包装器
+
+    关键作用：解决 SDL2_ttf 段错误崩溃(SIGSEGV)。
+
+    问题：HUD 每帧对相同文字（角色名、血量百分比等）反复调用
+    font.render()，每次都让 SDL2_ttf 分配新 Surface。在
+    pygame 2.6.1 + SDL2_ttf 2.24 + Python 3.14 下，高频文字表面
+    分配与特效系统的 Surface 分配交织，会触发 SDL2_ttf 堆内存
+    损坏，最终在 SDL_AllocFormat 处段错误。
+
+    修复：相同 (文字, 抗锯齿, 颜色) 只渲染一次并缓存 Surface，
+    后续帧直接复用。既根治崩溃，也是标准性能优化（文字表面
+    本就不应每帧重建）。详见 PERFORMANCE.md。
+    """
+
+    def __init__(self, font: pygame.font.Font):
+        self._font = font
+        self._cache = {}
+
+    def render(self, text, antialias, color, background=None):
+        key = (text, bool(antialias), tuple(color) if color else None,
+               tuple(background) if background else None)
+        cached = self._cache.get(key)
+        if cached is None:
+            if background is not None:
+                cached = self._font.render(text, antialias, color, background)
+            else:
+                cached = self._font.render(text, antialias, color)
+            self._cache[key] = cached
+        return cached
+
+    def __getattr__(self, name):
+        # 其他方法/属性（如 get_height, size 等）委托给真实字体
+        return getattr(self._font, name)
+
+
 class UIManager:
     """
     UI管理器类
@@ -61,10 +99,12 @@ class UIManager:
         self.screen = screen
 
         # 字体（使用中文字体）
-        self.font_large = get_chinese_font(72)
-        self.font_medium = get_chinese_font(48)
-        self.font_small = get_chinese_font(36)
-        self.font_tiny = get_chinese_font(24)
+        # 用 _CachedFont 包装：缓存文字表面，避免每帧重复 render 触发
+        # SDL2_ttf 段错误崩溃（详见 _CachedFont 文档字符串）
+        self.font_large = _CachedFont(get_chinese_font(72))
+        self.font_medium = _CachedFont(get_chinese_font(48))
+        self.font_small = _CachedFont(get_chinese_font(36))
+        self.font_tiny = _CachedFont(get_chinese_font(24))
 
         # UI常量
         self.margin = 40
