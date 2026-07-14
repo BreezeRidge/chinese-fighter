@@ -23,6 +23,7 @@ class GameState:
     CHARACTER_SELECT = "character_select"
     FIGHTING = "fighting"
     ROUND_END = "round_end"
+    RESTART_PROMPT = "restart_prompt"  # 新增：退出时的重启询问状态
 
 
 class Game:
@@ -81,66 +82,83 @@ class Game:
 
             self.handle_events()
 
-            if self.state == GameState.FIGHTING and not self.game_over:
-                self.update(dt)
-                self.check_collisions()
-                self.check_win_condition()
+            if self.state == GameState.RESTART_PROMPT:
+                # 重启提示状态：不更新游戏逻辑，只渲染提示
+                self.render()
+            else:
+                if self.state == GameState.FIGHTING and not self.game_over:
+                    self.update(dt)
+                    self.check_collisions()
+                    self.check_win_condition()
 
-            self.render()
+                self.render()
 
-        # 游戏结束后询问是否重新开始
-        self._show_restart_prompt()
+        # 循环彻底退出后才清理资源（只调用一次）
         pygame.quit()
         sys.exit()
 
-    def _show_restart_prompt(self):
-        """显示重启提示对话框"""
-        # 创建提示界面
-        font = pygame.font.Font(None, 48)
-        prompt_text = font.render("是否重新开始游戏？", True, Color.TEXT_PRIMARY)
-        hint_text = pygame.font.Font(None, 32).render("Y - 重新开始  |  N - 退出", True, Color.TEXT_GOLD)
+    def _enter_restart_prompt(self):
+        """进入重启提示状态（由退出触发，不销毁资源）"""
+        self.state = GameState.RESTART_PROMPT
 
-        # 背景遮罩
+    def _handle_restart_choice(self, restart: bool):
+        """
+        处理重启提示的用户选择
+
+        Args:
+            restart: True=重新开始, False=退出游戏
+        """
+        if restart:
+            # 重置游戏状态，回到战斗（不递归，不销毁资源）
+            self.reset_game()
+            self.state = GameState.FIGHTING
+        else:
+            # 退出主循环，run()末尾会统一清理资源
+            self.running = False
+
+    def _render_restart_prompt(self):
+        """渲染重启提示界面（复用已存在的字体，不重复创建）"""
+        # 半透明背景遮罩
         overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
         overlay.set_alpha(200)
         overlay.fill((0, 0, 0))
-
-        # 渲染提示框
         self.screen.blit(overlay, (0, 0))
-        self.screen.blit(prompt_text,
-                        (WINDOW_WIDTH // 2 - prompt_text.get_width() // 2, WINDOW_HEIGHT // 2 - 50))
-        self.screen.blit(hint_text,
-                        (WINDOW_WIDTH // 2 - hint_text.get_width() // 2, WINDOW_HEIGHT // 2 + 20))
-        pygame.display.flip()
 
-        # 等待用户选择
-        waiting = True
-        while waiting:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    waiting = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_y:
-                        # 重新开始
-                        self.running = True
-                        self.reset_game()
-                        self.run()  # 递归调用重新开始游戏循环
-                        waiting = False
-                    elif event.key == pygame.K_n or event.key == pygame.K_ESCAPE:
-                        waiting = False
+        # 使用UI管理器的中文字体（避免默认字体无法渲染中文 + 复用已初始化字体）
+        prompt_text = self.ui.font_large.render("是否重新开始游戏？", True, Color.TEXT_PRIMARY)
+        hint_text = self.ui.font_small.render("Y - 重新开始    N - 退出", True, Color.TEXT_GOLD)
+
+        self.screen.blit(prompt_text,
+                        (WINDOW_WIDTH // 2 - prompt_text.get_width() // 2,
+                         WINDOW_HEIGHT // 2 - 50))
+        self.screen.blit(hint_text,
+                        (WINDOW_WIDTH // 2 - hint_text.get_width() // 2,
+                         WINDOW_HEIGHT // 2 + 20))
 
     def handle_events(self):
         """事件处理"""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                # 窗口关闭：直接退出，统一在run()末尾清理
                 self.running = False
             elif event.type == pygame.KEYDOWN:
-                self._handle_keydown(event.key)
+                if self.state == GameState.RESTART_PROMPT:
+                    self._handle_restart_keydown(event.key)
+                else:
+                    self._handle_keydown(event.key)
+
+    def _handle_restart_keydown(self, key: int):
+        """重启提示状态下的按键处理"""
+        if key == pygame.K_y:
+            self._handle_restart_choice(restart=True)
+        elif key == pygame.K_n or key == pygame.K_ESCAPE:
+            self._handle_restart_choice(restart=False)
 
     def _handle_keydown(self, key: int):
         """按键按下处理"""
         if key == pygame.K_ESCAPE:
-            self.running = False
+            # ESC不再直接退出，而是进入重启/退出询问
+            self._enter_restart_prompt()
         elif key == pygame.K_r and self.game_over:
             self.reset_game()
         elif key == pygame.K_F1:
@@ -364,6 +382,10 @@ class Game:
         # 游戏结束界面
         if self.game_over:
             self.ui.draw_game_over(self.winner)
+
+        # 重启提示界面（覆盖在最上层）
+        if self.state == GameState.RESTART_PROMPT:
+            self._render_restart_prompt()
 
         pygame.display.flip()
 
