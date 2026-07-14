@@ -7,9 +7,9 @@ echo "武林争霸 - 性能优化"
 echo "=========================================="
 echo ""
 
-# 1. 设置环境变量抑制SDL警告
-export SDL_AUDIODRIVER=dummy  # 如果不需要音频可以禁用
+# 1. 设置环境变量抑制SDL警告（保留音频功能）
 export PYGAME_HIDE_SUPPORT_PROMPT=1
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 
 # 2. 检查Python版本
 echo "🔍 检查环境..."
